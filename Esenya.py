@@ -24,7 +24,6 @@ PREDEFINED_USERS = {
 }
 
 DYNAMIC_USERS = {}
-# ====================================================
 
 if not TELEGRAM_TOKEN or not GEMINI_API_KEY:
     raise ValueError("❌ Не заданы TELEGRAM_TOKEN или GEMINI_API_KEY!")
@@ -33,9 +32,12 @@ bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
-AI_SYSTEM_PROMPT = "Ты — Есения, милая и живая девушка..."
+AI_SYSTEM_PROMPT = (
+    "Ты — Есения, харизматичная и живая девушка. "
+    "Общайся естественно, с эмоциями и смайликами."
+)
 
-def get_user_context(username_lower: str | None, user_id: int, first_name: str) -> dict:
+def get_user_context(username_lower, user_id, first_name):
     if username_lower and username_lower in PREDEFINED_USERS:
         return PREDEFINED_USERS[username_lower]
     if user_id in DYNAMIC_USERS:
@@ -48,11 +50,11 @@ def get_user_context(username_lower: str | None, user_id: int, first_name: str) 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     user_info = get_user_context(
-        message.from_user.username.lower() if message.from_user.username else None, 
-        message.from_user.id, 
+        message.from_user.username.lower() if message.from_user.username else None,
+        message.from_user.id,
         message.from_user.first_name or "незнакомец"
     )
-    await message.answer(f"Привет, {user_info['name']}! 💫 Рада тебя видеть ✨")
+    await message.answer(f"Привет, {user_info['name']}! 💫 Рада тебя видеть!")
 
 
 @dp.message()
@@ -69,7 +71,7 @@ async def handle_message(message: types.Message):
 
     try:
         response = ai_client.models.generate_content(
-            model="gemini-1.5-flash",   # Вернулись к проверенной модели
+            model="gemini-1.5-flash",
             contents=[genai_types.Content(
                 role="user",
                 parts=[genai_types.Part.from_text(text=user_context)]
@@ -81,12 +83,8 @@ async def handle_message(message: types.Message):
             )
         )
         reply = response.text.strip()
-        print("✅ Gemini ответил успешно")  # Для логов
-
     except Exception as e:
-        error_msg = str(e)
-        logging.error(f"Gemini Error: {error_msg}")
-        print(f"❌ Gemini Error: {error_msg}")   # Для логов Railway
+        logging.error(f"Gemini error: {e}")
         reply = "Ой, что-то пошло не так 😅 Попробуй ещё раз!"
 
     await message.answer(reply)
