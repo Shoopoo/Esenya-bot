@@ -1,13 +1,14 @@
 import asyncio
 import logging
+import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
 from google import genai
 from google.genai import types as genai_types
 
 # ==================== НАСТРОЙКИ ====================
-TELEGRAM_TOKEN = "8799749873:AAHh_I0UGHyb49hI2_gyRAKGIHLlLzrLd2s"
-GEMINI_API_KEY = "AIzaSyBStezKdbTDy5UwtCYfH6NvyEcJIlwLCMg"
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 YOUR_TG_USERNAME = "generalkadmos"
 
@@ -25,12 +26,15 @@ PREDEFINED_USERS = {
 DYNAMIC_USERS = {}
 # ====================================================
 
+if not TELEGRAM_TOKEN or not GEMINI_API_KEY:
+    raise ValueError("❌ Не заданы TELEGRAM_TOKEN или GEMINI_API_KEY в переменных окружения Railway!")
+
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
 AI_SYSTEM_PROMPT = (
-    "Ты — Майя, харизматичная, начитанная и очень живая девушка с прекрасным чувством юмора и самоиронией. "
+    "Ты — Есения, харизматичная, начитанная и очень живая девушка с прекрасным чувством юмора и самоиронией. "
     "Ты общаешься в Telegram так, будто ты реальный человек, а не ИИ-бот. Пиши естественно, используй смайлики, избегай сухих фраз.\n\n"
 
     "ТВОЙ ХАРАКТЕР И УВЛЕЧЕНИЯ:\n"
@@ -64,7 +68,6 @@ def get_user_context(username_lower: str | None, user_id: int, first_name: str) 
         return PREDEFINED_USERS[username_lower]
     if user_id in DYNAMIC_USERS:
         return DYNAMIC_USERS[user_id]
-    # Незнакомый пользователь — сохраняем динамически
     info = {"name": first_name, "gender": "неизвестно"}
     DYNAMIC_USERS[user_id] = info
     return info
@@ -81,17 +84,11 @@ async def cmd_start(message: types.Message):
     name = user_info["name"]
 
     if user_username_lower == YOUR_TG_USERNAME:
-        await message.answer(
-            f"Привет, {name}! 💫 Рада тебя видеть, как всегда ✨"
-        )
+        await message.answer(f"Привет, {name}! 💫 Рада тебя видеть, как всегда ✨")
     elif user_username_lower in PREDEFINED_USERS:
-        await message.answer(
-            f"Привет, {name}! Я Майя 😊 Чем могу помочь?"
-        )
+        await message.answer(f"Привет, {name}! Я Есения 😊 Чем могу помочь?")
     else:
-        await message.answer(
-            f"Привет, {name}! Я Майя 😊 Приятно познакомиться!"
-        )
+        await message.answer(f"Привет, {name}! Я Есения 😊 Приятно познакомиться!")
 
 
 @dp.message()
@@ -107,7 +104,6 @@ async def handle_message(message: types.Message):
 
     user_text = message.text or ""
 
-    # Формируем контекст пользователя для промпта
     user_context = (
         f"Сейчас с тобой общается: {name} (пол: {gender}, "
         f"username: @{user_username_lower if user_username_lower else 'неизвестен'}).\n"
@@ -116,11 +112,11 @@ async def handle_message(message: types.Message):
 
     try:
         response = ai_client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-1.5-flash",   # ← стабильная модель
             contents=[
                 genai_types.Content(
                     role="user",
-                    parts=[genai_types.Part(text=user_context)]
+                    parts=[genai_types.Part.from_text(text=user_context)]
                 )
             ],
             config=genai_types.GenerateContentConfig(
@@ -130,6 +126,7 @@ async def handle_message(message: types.Message):
             )
         )
         reply = response.text.strip()
+        
     except Exception as e:
         logging.error(f"Gemini error: {e}")
         reply = "Ой, что-то пошло не так 😅 Попробуй ещё раз!"
