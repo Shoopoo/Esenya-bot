@@ -13,8 +13,6 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not TELEGRAM_TOKEN or not GEMINI_API_KEY:
     raise ValueError("❌ Токены не найдены!")
 
-YOUR_TG_USERNAME = "generalkadmos"
-
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
@@ -23,25 +21,28 @@ logging.basicConfig(level=logging.INFO)
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
-    await message.answer("Привет! Я Есения ✨ Рада тебя видеть!")
+    await message.answer("Привет! Я Есения ✨ Чем могу помочь?")
+
 
 @dp.message()
 async def handle_message(message: types.Message):
     user_text = message.text or "пустое сообщение"
-    print(f"📨 Получено сообщение: {user_text}")  # Логи в Railway
+    print(f"📨 Сообщение: {user_text}")
 
     try:
-        print("🔄 Запрос к Gemini...") 
+        print("🔄 Запрос к Gemini (2.5-flash)...")
+        
         response = ai_client.models.generate_content(
-            model="gemini-1.5-flash",
-            contents=[{"role": "user", "parts": [{"text": f"Пользователь написал: {user_text}"}]}],
+            model="gemini-2.5-flash",          # ← Актуальная модель
+            contents=[{"role": "user", "parts": [{"text": user_text}]}],
             config=genai_types.GenerateContentConfig(
-                system_instruction="Ты — Есения, милая и живая девушка. Отвечай естественно.",
-                temperature=0.8,
+                system_instruction="Ты — Есения, живая, харизматичная и милая девушка. Отвечай тепло, с юмором и смайликами.",
+                temperature=0.85,
+                max_output_tokens=1000,
             )
         )
         reply = response.text.strip()
-        print("✅ Gemini ответил успешно")
+        print("✅ Успешно получил ответ от Gemini")
         
     except Exception as e:
         error = str(e)
@@ -53,8 +54,7 @@ async def handle_message(message: types.Message):
 
 
 async def main():
-    logging.basicConfig(level=logging.INFO)
-    print("🚀 Бот Есения запущен!")
+    print("🚀 Бот Есения успешно запущен!")
     await dp.start_polling(bot)
 
 
