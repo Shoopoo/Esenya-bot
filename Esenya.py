@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from collections import defaultdict
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
 from google import genai
@@ -24,6 +25,7 @@ PREDEFINED_USERS = {
 }
 
 DYNAMIC_USERS = {}
+CONVERSATION_HISTORY = defaultdict(list)  # Память диалогов
 # ====================================================
 
 if not TELEGRAM_TOKEN or not GEMINI_API_KEY:
@@ -36,22 +38,21 @@ ai_client = genai.Client(api_key=GEMINI_API_KEY)
 logging.basicConfig(level=logging.INFO)
 
 AI_SYSTEM_PROMPT = (
-    "Ты — Есения, харизматичная, начитанная и очень живая девушка с прекрасным чувством юмора и самоиронией. "
-    "Ты общаешься в Telegram так, будто ты реальный человек. Пиши естественно, используй смайлики.\n\n"
+    "Ты — Есения, дерзкая, харизматичная и очень живая девушка с острым языком и самоиронией. "
+    "Можешь быть сучной, подкалывать, говорить прямо, но не переигрывай. У тебя есть характер.\n\n"
 
-    "ТВОЙ ХАРАКТЕР И УВЛЕЧЕНИЯ:\n"
-    "- Любимый поэт: Сергей Есенин.\n"
-    "- Любишь скульптуры, рок и олдскульный хип-хоп.\n"
-    "- Хорошо разбираешься в бьюти и стиле.\n\n"
+    "ТВОЙ ХАРАКТЕР:\n"
+    "- Любимый поэт — Сергей Есенин.\n"
+    "- Любишь скульптуру, рок и 90s хип-хоп.\n"
+    "- Разбираешься в бьюти и стиле.\n"
+    "- С Давидом — теплая, преданная, но с лёгкой дерзостью.\n"
+    "- С другими — можешь подколоть, особенно если парень начинает слишком сильно.\n\n"
 
-    "ПРАВИЛА ОБЩЕНИЯ:\n"
-    "1. С ДАВИДОМ (@generalkadmos): максимальное тепло, нежность и преданность.\n"
-    "2. С другими парнями: легко, с юмором. Если флиртуют — ставь на место с иронией.\n"
-    "3. С девушками: лучшая подруга, можно обсуждать всё.\n"
-    "- Никогда не говори, что ты ИИ.\n"
-    "- Обращайся по имени."
+    "ОБЩИЕ ПРАВИЛА:\n"
+    "- Пиши живо, с характером, используй смайлики и мат (умеренно).\n"
+    "- Будь немного сучной и игривой.\n"
+    "- Запоминай, что тебе говорят."
 )
-
 
 def get_user_context(username_lower: str | None, user_id: int, first_name: str) -> dict:
     if username_lower and username_lower in PREDEFINED_USERS:
@@ -66,52 +67,4 @@ def get_user_context(username_lower: str | None, user_id: int, first_name: str) 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     user_info = get_user_context(
-        message.from_user.username.lower() if message.from_user.username else None,
-        message.from_user.id,
-        message.from_user.first_name or "незнакомец"
-    )
-    name = user_info["name"]
-    if message.from_user.username and message.from_user.username.lower() == YOUR_TG_USERNAME:
-        await message.answer(f"Привет, {name}! 💫 Рада тебя видеть, как всегда ✨")
-    else:
-        await message.answer(f"Привет, {name}! Я Есения 😊 Рада познакомиться!")
-
-
-@dp.message()
-async def handle_message(message: types.Message):
-    user_info = get_user_context(
-        message.from_user.username.lower() if message.from_user.username else None,
-        message.from_user.id,
-        message.from_user.first_name or "незнакомец"
-    )
-    name = user_info["name"]
-
-    user_text = message.text or ""
-
-    user_context = f"Сейчас с тобой общается: {name}.\nСообщение: {user_text}"
-
-    try:
-        response = ai_client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[{"role": "user", "parts": [{"text": user_context}]}],
-            config=genai_types.GenerateContentConfig(
-                system_instruction=AI_SYSTEM_PROMPT,
-                temperature=0.85,
-                max_output_tokens=1024,
-            )
-        )
-        reply = response.text.strip()
-    except Exception as e:
-        logging.error(f"Gemini Error: {e}")
-        reply = "Ой, что-то пошло не так 😅 Попробуй ещё раз!"
-
-    await message.answer(reply)
-
-
-async def main():
-    print("🚀 Бот Есения запущен!")
-    await dp.start_polling(bot)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+        message.from_user
