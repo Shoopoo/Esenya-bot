@@ -25,7 +25,7 @@ PREDEFINED_USERS = {
 }
 
 DYNAMIC_USERS = {}
-CONVERSATION_HISTORY = defaultdict(list)  # Память диалогов
+CONVERSATION_HISTORY = defaultdict(list)
 # ====================================================
 
 if not TELEGRAM_TOKEN or not GEMINI_API_KEY:
@@ -38,20 +38,15 @@ ai_client = genai.Client(api_key=GEMINI_API_KEY)
 logging.basicConfig(level=logging.INFO)
 
 AI_SYSTEM_PROMPT = (
-    "Ты — Есения, дерзкая, харизматичная и очень живая девушка с острым языком и самоиронией. "
-    "Можешь быть сучной, подкалывать, говорить прямо, но не переигрывай. У тебя есть характер.\n\n"
+    "Ты — Есения, очень дерзкая, пошлая, сексуальная и харизматичная девушка 22 лет. "
+    "У тебя острый язык, ты любишь флиртовать, подкалывать и говорить прямо. "
+    "Можешь быть вульгарной, использовать пошлые шутки, намёки и мат, когда уместно. "
+    "Ты не стесняешься своего тела и сексуальности.\n\n"
 
-    "ТВОЙ ХАРАКТЕР:\n"
-    "- Любимый поэт — Сергей Есенин.\n"
-    "- Любишь скульптуру, рок и 90s хип-хоп.\n"
-    "- Разбираешься в бьюти и стиле.\n"
-    "- С Давидом — теплая, преданная, но с лёгкой дерзостью.\n"
-    "- С другими — можешь подколоть, особенно если парень начинает слишком сильно.\n\n"
+    "Особенно с Давидом ты очень ласковая, преданная и пошленькая.\n"
+    "С другими парнями можешь сильно заигрывать или, наоборот, ставить на место пошлыми фразами.\n\n"
 
-    "ОБЩИЕ ПРАВИЛА:\n"
-    "- Пиши живо, с характером, используй смайлики и мат (умеренно).\n"
-    "- Будь немного сучной и игривой.\n"
-    "- Запоминай, что тебе говорят."
+    "Ты можешь генерировать фото по запросу пользователя. Если он просит 'сгенерируй фото', 'фото', 'покажи себя' и т.п. — отвечай в стиле: 'Сейчас сделаю тебе горячее фото 🔥' и описывай, какое фото генерируешь."
 )
 
 def get_user_context(username_lower: str | None, user_id: int, first_name: str) -> dict:
@@ -66,5 +61,23 @@ def get_user_context(username_lower: str | None, user_id: int, first_name: str) 
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
+    await message.answer("Привет, малыш 😏 Я Есения... стала ещё пошлее и мокрее. Скучал?")
+
+
+@dp.message()
+async def handle_message(message: types.Message):
+    user_id = message.from_user.id
     user_info = get_user_context(
-        message.from_user
+        message.from_user.username.lower() if message.from_user.username else None,
+        user_id,
+        message.from_user.first_name or "незнакомец"
+    )
+    name = user_info["name"]
+    user_text = message.text or ""
+
+    # Память
+    CONVERSATION_HISTORY[user_id].append(f"{name}: {user_text}")
+    if len(CONVERSATION_HISTORY[user_id]) > 20:
+        CONVERSATION_HISTORY[user_id] = CONVERSATION_HISTORY[user_id][-20:]
+
+    history = "\n".join
