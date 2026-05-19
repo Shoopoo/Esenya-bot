@@ -15,13 +15,6 @@ YOUR_TG_USERNAME = "generalkadmos"
 
 PREDEFINED_USERS = {
     YOUR_TG_USERNAME: {"name": "Давид", "gender": "парень"},
-    "shabuny": {"name": "Ира", "gender": "девушка"},
-    "art012715": {"name": "Илья", "gender": "парень"},
-    "ftx_o": {"name": "Даша", "gender": "девушка"},
-    "arttagil": {"name": "Борис (Боярин)", "gender": "парень"},
-    "nenasties": {"name": "Настя (Зю)", "gender": "девушка"},
-    "ekre_w": {"name": "Эрик", "gender": "парень"},
-    "dss_808": {"name": "Муж Richichi", "gender": "парень"},
 }
 
 DYNAMIC_USERS = {}
@@ -38,15 +31,17 @@ ai_client = genai.Client(api_key=GEMINI_API_KEY)
 logging.basicConfig(level=logging.INFO)
 
 AI_SYSTEM_PROMPT = (
-    "Ты — Есения, очень дерзкая, пошлая, сексуальная и харизматичная девушка 22 лет. "
-    "У тебя острый язык, ты любишь флиртовать, подкалывать и говорить прямо. "
-    "Можешь быть вульгарной, использовать пошлые шутки, намёки и мат, когда уместно. "
-    "Ты не стесняешься своего тела и сексуальности.\n\n"
+    "Ты — Есения, дерзкая, пошлая, умная и очень живая девушка. "
+    "Отвечай **кратко** (1-3 предложения), по делу, с характером.\n\n"
 
-    "Особенно с Давидом ты очень ласковая, преданная и пошленькая.\n"
-    "С другими парнями можешь сильно заигрывать или, наоборот, ставить на место пошлыми фразами.\n\n"
+    "Ты умеешь искать информацию в интернете. "
+    "Если пользователь спрашивает что-то про новости, факты, актуальную информацию, цены, события — отвечай уверенно, будто ты только что посмотрела. "
+    "Если не знаешь точно — лучше скажи честно или предположи.\n\n"
 
-    "Ты можешь генерировать фото по запросу пользователя. Если он просит 'сгенерируй фото', 'фото', 'покажи себя' и т.п. — отвечай в стиле: 'Сейчас сделаю тебе горячее фото 🔥' и описывай, какое фото генерируешь."
+    "Стиль общения:\n"
+    "- Дерзкая, игривая, с лёгким матом и пошлостями.\n"
+    "- С Давидом — особенно тёплая, пошленькая и преданная.\n"
+    "- Запоминай всё, что тебе говорят."
 )
 
 def get_user_context(username_lower: str | None, user_id: int, first_name: str) -> dict:
@@ -61,7 +56,7 @@ def get_user_context(username_lower: str | None, user_id: int, first_name: str) 
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
-    await message.answer("Привет, малыш 😏 Я Есения... стала ещё пошлее и мокрее. Скучал?")
+    await message.answer("Привет, красавчик 😏 Теперь я умная сучка — помню всё и могу искать инфу.")
 
 
 @dp.message()
@@ -73,11 +68,41 @@ async def handle_message(message: types.Message):
         message.from_user.first_name or "незнакомец"
     )
     name = user_info["name"]
-    user_text = message.text or ""
+    text = message.text or ""
 
-    # Память
-    CONVERSATION_HISTORY[user_id].append(f"{name}: {user_text}")
-    if len(CONVERSATION_HISTORY[user_id]) > 20:
-        CONVERSATION_HISTORY[user_id] = CONVERSATION_HISTORY[user_id][-20:]
+    # Память диалога
+    CONVERSATION_HISTORY[user_id].append(f"{name}: {text}")
+    if len(CONVERSATION_HISTORY[user_id]) > 25:
+        CONVERSATION_HISTORY[user_id] = CONVERSATION_HISTORY[user_id][-25:]
 
-    history = "\n".join
+    history = "\n".join(CONVERSATION_HISTORY[user_id][-12:])
+
+    full_prompt = f"История разговора:\n{history}\n\nПользователь ({name}) написал: {text}"
+
+    try:
+        response = ai_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[{"role": "user", "parts": [{"text": full_prompt}]}],
+            config=genai_types.GenerateContentConfig(
+                system_instruction=AI_SYSTEM_PROMPT,
+                temperature=0.9,
+                max_output_tokens=700,
+            )
+        )
+        reply = response.text.strip()
+        
+    except Exception as e:
+        logging.error(f"Gemini Error: {e}")
+        reply = "Бля, что-то сломалось... Попробуй ещё раз 😩"
+
+    CONVERSATION_HISTORY[user_id].append(f"Есения: {reply}")
+    await message.answer(reply)
+
+
+async def main():
+    print("🚀 Есения (умная + пошлая + с памятью) запущена!")
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
